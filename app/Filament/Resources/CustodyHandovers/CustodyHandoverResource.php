@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CustodyHandovers;
 
 use App\Enums\CustodyMovement;
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\CustodyHandovers\Pages\CreateCustodyHandover;
 use App\Filament\Resources\CustodyHandovers\Pages\ListCustodyHandovers;
 use App\Filament\Resources\CustodyHandovers\Pages\ViewCustodyHandover;
@@ -27,6 +28,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CustodyHandoverResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = CustodyHandover::class;
 
     protected static ?string $navigationLabel = 'العهد المالية';
@@ -40,6 +43,11 @@ class CustodyHandoverResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'الخزائن';
 
     protected static ?int $navigationSort = 5;
+
+    public static function canCreate(): bool
+    {
+        return WorkDay::current() instanceof WorkDay;
+    }
 
     public static function canEdit(Model $record): bool
     {

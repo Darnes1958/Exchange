@@ -237,7 +237,7 @@ class DailyCustodyService
                 ]);
             }
 
-            $mainBalance->current_balance = self::subtract($available, $amount);
+            $mainBalance->setCurrentBalance(self::subtract($available, $amount));
             $mainBalance->save();
 
             if (! $cashierBalance instanceof CashierVaultBalance) {
@@ -273,7 +273,7 @@ class DailyCustodyService
             $mainBalance->save();
         }
 
-        $mainBalance->current_balance = self::add(self::money($mainBalance->current_balance), $amount);
+        $mainBalance->setCurrentBalance(self::add(self::money($mainBalance->current_balance), $amount));
         $mainBalance->save();
     }
 

@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\BranchMode;
+use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\CompanySetting;
 use App\Models\User;
@@ -19,6 +20,17 @@ use Filament\Schemas\Schema;
 
 class CompanySettings extends Page
 {
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        if ($user instanceof User && $user->role === UserRole::Cashier) {
+            return false;
+        }
+
+        return parent::canAccess();
+    }
+
     protected static ?string $navigationLabel = 'إعدادات الشركة';
 
     protected static ?string $title = 'إعدادات الشركة';

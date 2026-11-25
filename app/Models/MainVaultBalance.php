@@ -9,6 +9,8 @@ class MainVaultBalance extends CompanyModel
 {
     public bool $recalculatingCostPrice = false;
 
+    public bool $adjustingCurrentBalance = false;
+
     protected $fillable = [
         'main_vault_id',
         'currency_id',
@@ -21,6 +23,9 @@ class MainVaultBalance extends CompanyModel
         static::creating(function (MainVaultBalance $balance): void {
             if (! static::actorCanAdjustCarriedBalance()) {
                 $balance->opening_balance = 0;
+                if (! $balance->isLibyanDinar()) {
+                    $balance->cost_price = null;
+                }
             }
 
             $balance->current_balance = $balance->opening_balance ?? 0;
@@ -36,18 +41,34 @@ class MainVaultBalance extends CompanyModel
             }
 
             $openingChanged = static::openingBalanceChanged($balance);
+            $adjustingCurrentBalance = $balance->adjustingCurrentBalance;
+            $balance->adjustingCurrentBalance = false;
 
             if ($balance->isDirty('cost_price')) {
                 static::guardCostPrice($balance, $openingChanged);
             }
 
+            if ($balance->isLibyanDinar()) {
+                $balance->cost_price = '1.000000';
+            }
+
             if (! $openingChanged) {
+                if ($balance->isDirty('current_balance') && ! $adjustingCurrentBalance) {
+                    $balance->current_balance = $balance->getOriginal('current_balance');
+                }
+
                 return;
             }
 
             $movements = (float) $balance->getOriginal('current_balance') - (float) $balance->getOriginal('opening_balance');
             $balance->current_balance = number_format((float) $balance->opening_balance + $movements, 3, '.', '');
         });
+    }
+
+    public function setCurrentBalance(float|string $amount): void
+    {
+        $this->adjustingCurrentBalance = true;
+        $this->current_balance = number_format((float) $amount, 3, '.', '');
     }
 
     /**
@@ -98,9 +119,7 @@ class MainVaultBalance extends CompanyModel
             return;
         }
 
-        if (filled($balance->getOriginal('cost_price'))) {
-            $balance->cost_price = $balance->getOriginal('cost_price');
-        }
+        $balance->cost_price = $balance->getOriginal('cost_price');
     }
 
     protected static function openingBalanceChanged(MainVaultBalance $balance): bool

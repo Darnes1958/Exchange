@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Customers;
 
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\Customers\Pages\CreateCustomer;
 use App\Filament\Resources\Customers\Pages\EditCustomer;
 use App\Filament\Resources\Customers\Pages\ListCustomers;
@@ -19,6 +20,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CustomerResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = Customer::class;
 
     protected static ?string $navigationLabel = 'الزبائن';
@@ -43,9 +46,12 @@ class CustomerResource extends Resource
         return ! ($record instanceof Customer && $record->is_general);
     }
 
-    public static function form(Schema $schema): Schema
+    /**
+     * @return list<TextInput|Textarea>
+     */
+    public static function formFields(): array
     {
-        return $schema->components([
+        return [
             TextInput::make('name')
                 ->label('الاسم')
                 ->required()
@@ -57,7 +63,12 @@ class CustomerResource extends Resource
             Textarea::make('notes')
                 ->label('ملاحظات')
                 ->columnSpanFull(),
-        ]);
+        ];
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema->components(static::formFields());
     }
 
     public static function table(Table $table): Table

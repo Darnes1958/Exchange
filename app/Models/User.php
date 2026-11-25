@@ -72,9 +72,46 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
         });
 
         static::saving(function (User $user): void {
+            $originalRole = $user->originalRole();
+            $originalBranchId = $user->getOriginal('branch_id');
+            $originalCompany = $user->getOriginal('company');
+
             if (! $user->role instanceof UserRole || ! $user->worksInBranch()) {
                 $user->branch_id = null;
+            } else {
+                $connection = is_string($user->company) && $user->company !== '' ? $user->company : null;
 
+                if ($connection !== null && config("database.connections.{$connection}") !== null && Schema::connection($connection)->hasTable('company_settings')) {
+                    $mode = CompanySetting::on($connection)->value('branch_mode');
+                    $single = $mode === BranchMode::Single->value || $mode === BranchMode::Single;
+
+                    if ($single) {
+                        $branchId = Branch::on($connection)->orderBy('id')->value('id');
+
+                        if (! $branchId) {
+                            throw ValidationException::withMessages([
+                                'branch_id' => 'لا يوجد فرع للشركة.',
+                            ]);
+                        }
+
+                        $user->branch_id = $branchId;
+                    } elseif (blank($user->branch_id)) {
+                        throw ValidationException::withMessages([
+                            'branch_id' => 'حدد الفرع.',
+                        ]);
+                    }
+                }
+            }
+
+            if ($user->leavesBranchWithoutManager($originalRole, $originalBranchId, $originalCompany)) {
+                throw ValidationException::withMessages([
+                    'role' => 'لكل فرع مدير واحد على الأقل، ولا يمكن ترك الفرع بلا مدير.',
+                ]);
+            }
+        });
+
+        static::saved(function (User $user): void {
+            if ($user->role !== UserRole::Cashier || blank($user->branch_id) || ! $user->wasChanged('branch_id')) {
                 return;
             }
 
@@ -84,29 +121,72 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
                 return;
             }
 
-            if (! Schema::connection($connection)->hasTable('company_settings')) {
+            if (! Schema::connection($connection)->hasTable('cashier_vaults')) {
                 return;
             }
 
-            $mode = CompanySetting::on($connection)->value('branch_mode');
-            $single = $mode === BranchMode::Single->value || $mode === BranchMode::Single;
+            CashierVault::on($connection)
+                ->where('user_id', $user->id)
+                ->update(['branch_id' => $user->branch_id]);
+        });
 
-            if ($single) {
-                $branchId = Branch::on($connection)->orderBy('id')->value('id');
-
-                if ($branchId) {
-                    $user->branch_id = $branchId;
-                }
-
+        static::deleting(function (User $user): void {
+            if ($user->role !== UserRole::Admin || blank($user->branch_id)) {
                 return;
             }
 
-            if (blank($user->branch_id)) {
+            if (! static::branchHasAnotherManager($user->company, $user->branch_id, (int) $user->id)) {
                 throw ValidationException::withMessages([
-                    'branch_id' => 'حدد الفرع.',
+                    'role' => 'لكل فرع مدير واحد على الأقل، ولا يمكن حذف آخر مدير.',
                 ]);
             }
         });
+    }
+
+    public function leavesBranchWithoutManager(mixed $originalRole, mixed $originalBranchId, mixed $originalCompany): bool
+    {
+        if (! $this->exists || ! $originalRole instanceof UserRole || $originalRole !== UserRole::Admin || blank($originalBranchId)) {
+            return false;
+        }
+
+        $company = is_string($originalCompany) && $originalCompany !== '' ? $originalCompany : $this->company;
+        $stillManager = $this->role === UserRole::Admin
+            && (string) $this->branch_id === (string) $originalBranchId
+            && (string) $this->company === (string) $company;
+
+        if ($stillManager) {
+            return false;
+        }
+
+        return ! static::branchHasAnotherManager($company, $originalBranchId, $this->id);
+    }
+
+    protected function originalRole(): ?UserRole
+    {
+        $original = $this->getOriginal('role');
+
+        if ($original instanceof UserRole) {
+            return $original;
+        }
+
+        if (is_string($original)) {
+            return UserRole::tryFrom($original);
+        }
+
+        return null;
+    }
+
+    protected static function branchHasAnotherManager(mixed $company, mixed $branchId, int $exceptUserId): bool
+    {
+        return static::query()
+            ->where('role', UserRole::Admin->value)
+            ->where('branch_id', $branchId)
+            ->when(
+                is_string($company) && $company !== '',
+                fn ($query) => $query->where('company', $company),
+            )
+            ->whereKeyNot($exceptUserId)
+            ->exists();
     }
 
     public function worksInBranch(): bool
@@ -125,6 +205,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
             UserRole::Prog,
             UserRole::SupperAdmin,
             UserRole::Admin,
+            UserRole::Cashier,
         ], true);
     }
 

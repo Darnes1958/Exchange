@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CashierVaults;
 
 use App\Enums\UserRole;
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\CashierVaults\Pages\CreateCashierVault;
 use App\Filament\Resources\CashierVaults\Pages\EditCashierVault;
 use App\Filament\Resources\CashierVaults\Pages\ListCashierVaults;
@@ -28,6 +29,8 @@ use Illuminate\Support\Facades\Auth;
 
 class CashierVaultResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = CashierVault::class;
 
     protected static ?string $navigationLabel = 'خزائن الصرافين';

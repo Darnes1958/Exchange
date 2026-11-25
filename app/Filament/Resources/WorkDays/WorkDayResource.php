@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\WorkDays;
 
 use App\Enums\WorkDayStatus;
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\WorkDays\Pages\ListWorkDays;
 use App\Filament\Resources\WorkDays\Pages\ViewWorkDay;
 use App\Filament\Resources\WorkDays\RelationManagers\WorkDayHandoversRelationManager;
@@ -21,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 
 class WorkDayResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = WorkDay::class;
 
     protected static ?string $navigationLabel = 'العمل اليومي';

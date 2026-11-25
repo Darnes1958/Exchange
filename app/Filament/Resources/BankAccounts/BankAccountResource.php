@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BankAccounts;
 
 use App\Enums\BankAccountType;
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\BankAccounts\Pages\CreateBankAccount;
 use App\Filament\Resources\BankAccounts\Pages\EditBankAccount;
 use App\Filament\Resources\BankAccounts\Pages\ListBankAccounts;
@@ -27,6 +28,8 @@ use Filament\Tables\Table;
 
 class BankAccountResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = BankAccount::class;
 
     protected static ?string $navigationLabel = 'الحسابات المصرفية';

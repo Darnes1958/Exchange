@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\VoucherType;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Validation\ValidationException;
 
 class Voucher extends CompanyModel
 {
@@ -16,23 +15,6 @@ class Voucher extends CompanyModel
         'voucher_date',
         'notes',
     ];
-
-    protected static function booted(): void
-    {
-        static::saving(function (Voucher $voucher): void {
-            $customer = $voucher->customer;
-
-            if (! $customer instanceof Customer && filled($voucher->customer_id)) {
-                $customer = Customer::query()->find($voucher->customer_id);
-            }
-
-            if ($customer instanceof Customer && $customer->is_general) {
-                throw ValidationException::withMessages([
-                    'customer_id' => 'الزبون العام يسدد بالكامل ولا تُسجل له إيصالات قبض أو دفع.',
-                ]);
-            }
-        });
-    }
 
     protected function casts(): array
     {

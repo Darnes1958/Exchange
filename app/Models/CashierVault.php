@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,25 @@ class CashierVault extends CompanyModel
         static::saving(function (CashierVault $vault): void {
             $cashier = User::query()->find($vault->user_id);
 
-            if ($cashier instanceof User && filled($cashier->branch_id)) {
+            if (! $cashier instanceof User || $cashier->role !== UserRole::Cashier) {
+                throw ValidationException::withMessages([
+                    'user_id' => 'اختر مستخدماً من تصنيف صراف.',
+                ]);
+            }
+
+            $connection = $vault->getConnectionName();
+
+            if (
+                is_string($cashier->company) && $cashier->company !== ''
+                && is_string($connection) && $connection !== ''
+                && $cashier->company !== $connection
+            ) {
+                throw ValidationException::withMessages([
+                    'user_id' => 'الصراف لا يتبع هذه الشركة.',
+                ]);
+            }
+
+            if (filled($cashier->branch_id)) {
                 $vault->branch_id = $cashier->branch_id;
             }
 

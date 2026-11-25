@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Companies;
 
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Companies\Pages\ListCompanies;
 use App\Filament\Resources\Companies\Pages\ViewCompany;
@@ -18,6 +19,8 @@ use Filament\Tables\Table;
 
 class CompanyResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = Company::class;
 
     protected static ?string $navigationLabel = 'الشركات';

@@ -3,16 +3,19 @@
 namespace App\Filament\Resources\Vouchers;
 
 use App\Enums\VoucherType;
+use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Resources\Customers\CustomerResource;
 use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Filament\Resources\Vouchers\Pages\EditVoucher;
 use App\Filament\Resources\Vouchers\Pages\ListVouchers;
 use App\Filament\Resources\Vouchers\Pages\ViewVoucher;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\Voucher;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -20,9 +23,12 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class VoucherResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = Voucher::class;
 
     protected static ?string $navigationLabel = 'إيصالات القبض والدفع';
@@ -40,21 +46,29 @@ class VoucherResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('type')
+            Radio::make('type')
                 ->label('النوع')
                 ->options(VoucherType::options())
+                ->default(VoucherType::Receipt->value)
+                ->inline()
                 ->required()
-                ->native(false),
+                ->columnSpanFull(),
             Select::make('customer_id')
                 ->label('الزبون')
-                ->options(fn (): array => Customer::query()
-                    ->where('is_general', false)
-                    ->orderBy('name')
-                    ->pluck('name', 'id')
-                    ->all())
+                ->relationship('customer', 'name', fn (Builder $query): Builder => $query->orderBy('name'))
+                ->default(1)
                 ->searchable()
+                ->preload()
                 ->required()
-                ->helperText('الزبون عام يسدد بالكامل عند البيع والشراء، ولا تُسجل له إيصالات.'),
+                ->manageOptionForm(fn (): array => CustomerResource::formFields())
+                ->createOptionAction(fn (Action $action): Action => $action
+                    ->label('زبون جديد')
+                    ->modalHeading('زبون جديد')
+                    ->modalSubmitActionLabel('حفظ'))
+                ->editOptionAction(fn (Action $action): Action => $action
+                    ->label('تعديل الزبون')
+                    ->modalHeading('تعديل الزبون')
+                    ->modalSubmitActionLabel('حفظ')),
             Select::make('currency_id')
                 ->label('العملة')
                 ->allowHtml()
@@ -66,12 +80,15 @@ class VoucherResource extends Resource
                     ])
                     ->all())
                 ->searchable()
+                ->default(fn (): mixed => Currency::query()->where('code', 'LYD')->value('id'))
                 ->required(),
             TextInput::make('amount')
                 ->label('المبلغ')
                 ->numeric()
                 ->minValue(0.001)
-                ->required(),
+                ->required()
+                ->autofocus()
+                ->extraInputAttributes(['data-initial-focus' => '1']),
             DatePicker::make('voucher_date')
                 ->label('التاريخ')
                 ->default(now())

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Filament\Tables\Table;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        Table::configureUsing(fn (Table $table) => $table
+            ->defaultNumberLocale('nl')
+            ->pluralModelLabel('الصفحات')
+            ->emptyStateHeading('لا توجد بيانات')
+            ->defaultKeySort(false));
     }
 
     /**

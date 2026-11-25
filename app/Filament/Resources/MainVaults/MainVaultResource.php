@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MainVaults;
 
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\MainVaults\Pages\CreateMainVault;
 use App\Filament\Resources\MainVaults\Pages\EditMainVault;
 use App\Filament\Resources\MainVaults\Pages\ListMainVaults;
@@ -30,6 +31,8 @@ use Filament\Tables\Table;
 
 class MainVaultResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = MainVault::class;
 
     protected static ?string $navigationLabel = 'الخزينة الرئيسية';
@@ -77,7 +80,7 @@ class MainVaultResource extends Resource
                 ->columnSpanFull(),
             Repeater::make('balances')
                 ->label('أرصدة العملات')
-                ->helperText('الرصيد الحالي ناتج الرصيد المنقول وحركات الإيداع والسحب، ولا يُعدَّل يدوياً. الرصيد المنقول يعدّله المبرمج فقط، بطلب من مدير الشركة. سعر التكلفة هو قيمة العملة مقابل الدينار الليبي، ويُكتب مرة واحدة عند الإدخال، ثم يُحدَّث بمتوسط سعر الشراء، ويمكن تعديله عند تعديل الرصيد المنقول.')
+                ->helperText('الرصيد الحالي ناتج الرصيد المنقول وحركات الإيداع والسحب، ولا يُعدَّل يدوياً. الرصيد المنقول يعدّله المبرمج فقط، بطلب من مدير الشركة. سعر التكلفة يُفتح عند إدخال العملة وعند تعديل الرصيد المنقول، وتكلفة الدينار الليبي 1.')
                 ->relationship()
                 ->addActionLabel('إضافة عملة')
                 ->deletable(fn (): bool => static::canAdjustCarriedBalance())
@@ -181,7 +184,7 @@ class MainVaultResource extends Resource
 
     protected static function costPriceIsLocked(string $operation, Get $get, mixed $record): bool
     {
-        if ($operation === 'view' || static::currencyIsLyd($get('currency_id'))) {
+        if ($operation === 'view' || static::currencyIsLyd($get('currency_id')) || ! static::canAdjustCarriedBalance()) {
             return true;
         }
 
@@ -191,14 +194,10 @@ class MainVaultResource extends Resource
             return false;
         }
 
-        $stored = MainVaultBalance::query()->whereKey($balanceId)->first(['opening_balance', 'cost_price']);
+        $stored = MainVaultBalance::query()->whereKey($balanceId)->first(['opening_balance']);
 
-        if (! $stored instanceof MainVaultBalance || blank($stored->cost_price)) {
+        if (! $stored instanceof MainVaultBalance) {
             return false;
-        }
-
-        if (! static::canAdjustCarriedBalance()) {
-            return true;
         }
 
         return round((float) $get('opening_balance'), 3) === round((float) $stored->opening_balance, 3);

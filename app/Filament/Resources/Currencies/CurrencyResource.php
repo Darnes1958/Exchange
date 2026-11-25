@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Currencies;
 
+use App\Filament\Concerns\ExceptCashiers;
 use App\Filament\Resources\Currencies\Pages\CreateCurrency;
 use App\Filament\Resources\Currencies\Pages\EditCurrency;
 use App\Filament\Resources\Currencies\Pages\ListCurrencies;
@@ -30,6 +31,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CurrencyResource extends Resource
 {
+    use ExceptCashiers;
+
     protected static ?string $model = Currency::class;
 
     protected static ?string $navigationLabel = 'العملات';

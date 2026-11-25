@@ -10,6 +10,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -21,14 +22,18 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
+
     public function panel(Panel $panel): Panel
     {
         return $panel
             ->default()
             ->id('admin')
             ->path('admin')
+            ->breadcrumbs(false)
+            ->sidebarCollapsibleOnDesktop()
             ->login()
             ->brandName('نظام الصرافة')
+            ->renderHook(PanelsRenderHook::SCRIPTS_AFTER, fn () => view('filament.enter-navigation'))
             ->resourceCreatePageRedirect('index')
             ->colors([
                 'primary' => Color::Amber,

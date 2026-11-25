@@ -19,7 +19,9 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class BranchResource extends Resource
 {
@@ -36,6 +38,17 @@ class BranchResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'الإدارة';
 
     protected static ?int $navigationSort = 4;
+
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+
+        if ($user instanceof User && $user->role === UserRole::Cashier) {
+            return false;
+        }
+
+        return ! CompanySetting::hidesBranchChoice() && parent::canAccess();
+    }
 
     public static function shouldRegisterNavigation(): bool
     {
@@ -74,7 +87,7 @@ class BranchResource extends Resource
                 TextColumn::make('managers_label')
                     ->label('المديرون')
                     ->state(function (Branch $record): string {
-                        $names = User::query()
+                        $names = static::companyUsers()
                             ->where('role', UserRole::Admin)
                             ->where('branch_id', $record->id)
                             ->orderBy('name')
@@ -85,7 +98,7 @@ class BranchResource extends Resource
                 TextColumn::make('cashiers_label')
                     ->label('الصرافون')
                     ->state(function (Branch $record): string {
-                        $names = User::query()
+                        $names = static::companyUsers()
                             ->where('role', UserRole::Cashier)
                             ->where('branch_id', $record->id)
                             ->orderBy('name')
@@ -99,6 +112,19 @@ class BranchResource extends Resource
                 ViewAction::make(),
                 EditAction::make(),
             ]);
+    }
+
+    /**
+     * @return Builder<User>
+     */
+    protected static function companyUsers(): Builder
+    {
+        $company = Auth::user()?->company;
+
+        return User::query()->when(
+            is_string($company) && $company !== '',
+            fn (Builder $query): Builder => $query->where('company', $company),
+        );
     }
 
     public static function getPages(): array
