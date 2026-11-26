@@ -4,6 +4,7 @@ namespace App\Filament\Resources\CustodyHandovers;
 
 use App\Enums\CustodyMovement;
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\CustodyHandovers\Pages\CreateCustodyHandover;
 use App\Filament\Resources\CustodyHandovers\Pages\ListCustodyHandovers;
 use App\Filament\Resources\CustodyHandovers\Pages\ViewCustodyHandover;
@@ -18,7 +19,6 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -172,6 +172,7 @@ class CustodyHandoverResource extends Resource
                     TextInput::make('amount')
                         ->label('المبلغ')
                         ->hiddenLabel()
+                        ->numeric()
                         ->disabled()
                         ->dehydrated(false),
                 ]),

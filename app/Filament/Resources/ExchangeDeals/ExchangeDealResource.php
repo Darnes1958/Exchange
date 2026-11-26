@@ -6,34 +6,34 @@ use App\Enums\DealPayment;
 use App\Enums\DealStatus;
 use App\Enums\TradeSide;
 use App\Enums\UserRole;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\Customers\CustomerResource;
 use App\Filament\Resources\ExchangeDeals\Pages\CreateExchangeDeal;
 use App\Filament\Resources\ExchangeDeals\Pages\EditExchangeDeal;
 use App\Filament\Resources\ExchangeDeals\Pages\ListExchangeDeals;
 use App\Filament\Resources\ExchangeDeals\Pages\ViewExchangeDeal;
 use App\Filament\Resources\ExchangeDeals\RelationManagers\ExchangeDealLogsRelationManager;
+use App\Models\BankAccount;
 use App\Models\CashierVault;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\ExchangeDeal;
-use App\Models\MainVault;
-use App\Models\MainVaultBalance;
 use App\Models\User;
 use App\Models\WorkDay;
 use App\Services\ExchangeTradeService;
+use App\Support\Numbers;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Notifications\Notification;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Flex;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
@@ -129,6 +129,12 @@ class ExchangeDealResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
+            View::make('filament.deal-summary')
+                ->viewData(fn (Get $get): array => [
+                    'rate' => Numbers::format($get('rate') ?? 0, 3),
+                    'total' => Numbers::format(static::lydPreview($get), 3),
+                ])
+                ->columnSpanFull(),
             Flex::make([
                 Radio::make('type')
                     ->label('النوع')
@@ -139,6 +145,10 @@ class ExchangeDealResource extends Resource
                     ->required()
                     ->disabled(fn (string $operation): bool => $operation === 'edit')
                     ->afterStateUpdated(function (Get $get, Set $set): void {
+                        if ((string) $get('type') !== TradeSide::Sell->value) {
+                            $set('bank_account_id', null);
+                        }
+
                         static::fillRate($get, $set);
                     }),
                 Radio::make('payment')
@@ -149,93 +159,111 @@ class ExchangeDealResource extends Resource
                     ->live()
                     ->required()
                     ->afterStateUpdated(function (Get $get, Set $set): void {
+                        if ((string) $get('payment') !== DealPayment::Check->value) {
+                            $set('bank_account_id', null);
+                        }
+
                         static::fillRate($get, $set);
                     }),
             ])->columnSpanFull(),
-            Select::make('customer_id')
-                ->label('الزبون')
-                ->relationship('customer', 'name', fn (Builder $query): Builder => $query->orderBy('name'))
-                ->default(fn (): mixed => Customer::query()->where('is_general', true)->value('id') ?? 1)
-                ->searchable()
-                ->preload()
-                ->required()
-                ->manageOptionForm(fn (): array => CustomerResource::formFields())
-                ->createOptionAction(fn (Action $action): Action => $action
-                    ->label('زبون جديد')
-                    ->modalHeading('زبون جديد')
-                    ->modalSubmitActionLabel('حفظ'))
-                ->editOptionAction(fn (Action $action): Action => $action
-                    ->label('تعديل الزبون')
-                    ->modalHeading('تعديل الزبون')
-                    ->modalSubmitActionLabel('حفظ')),
-            Select::make('currency_id')
-                ->label('العملة')
-                ->allowHtml()
-                ->options(fn (): array => Currency::query()
-                    ->where('is_active', true)
-                    ->where('code', '!=', 'LYD')
-                    ->orderBy('code')
-                    ->get()
-                    ->mapWithKeys(fn (Currency $currency): array => [
-                        $currency->id => $currency->decoratedLabel($currency->code.' — '.$currency->name),
-                    ])
-                    ->all())
-                ->searchable()
-                ->live()
-                ->default(fn (): mixed => Currency::query()->where('code', 'USD')->value('id'))
-                ->required()
-                ->afterStateUpdated(function (Get $get, Set $set): void {
-                    static::fillRate($get, $set);
-                }),
-            TextInput::make('quantity')
-                ->label('الكمية')
-                ->numeric()
-                ->minValue(0.001)
-                ->live()
-                ->required()
-                ->autofocus()
-                ->extraInputAttributes(['data-initial-focus' => '1']),
-            TextInput::make('rate')
-                ->label('السعر')
-                ->numeric()
-                ->minValue(0.000001)
-                ->live()
-                ->required()
-                ->default(fn (): mixed => Currency::query()->where('code', 'USD')->value('sell_cash_rate'))
-                ->helperText('يأتي من سعر العملة حسب البيع أو الشراء وكاش أو صك، ويمكن تغييره لهذه العملية.'),
-            Placeholder::make('lyd_preview')
-                ->label('مقابل الدينار')
-                ->visible(fn (string $operation): bool => $operation === 'create')
-                ->content(fn (Get $get): string => number_format(static::lydPreview($get), 3, '.', '')),
-            Placeholder::make('cost_preview')
-                ->label('سعر التكلفة')
-                ->visible(fn (Get $get, string $operation): bool => $operation === 'create' && (string) $get('type') === TradeSide::Sell->value)
-                ->content(fn (Get $get): string => static::branchCost($get('currency_id')))
-                ->helperText('من الخزينة الرئيسية للفرع. رصيد الخزينة لا يتغير.'),
-            Placeholder::make('profit_preview')
-                ->label('الربح أو الخسارة')
-                ->visible(fn (Get $get, string $operation): bool => $operation === 'create' && (string) $get('type') === TradeSide::Sell->value)
-                ->content(function (Get $get): string {
-                    $cost = (float) static::branchCost($get('currency_id'));
-                    $profit = round(((float) ($get('rate') ?? 0) - $cost) * (float) ($get('quantity') ?? 0), 3);
-
-                    return number_format($profit, 3, '.', '');
-                }),
-            Placeholder::make('buy_cost_notice')
-                ->label('تكلفة الخزينة')
-                ->visible(fn (Get $get, string $operation): bool => $operation === 'create' && (string) $get('type') === TradeSide::Buy->value)
-                ->content('عند الحفظ يُعاد احتساب متوسط تكلفة هذه العملة في الخزينة الرئيسية من الكمية الجديدة ورصيد الخزينة ورصيد عهد اليوم.'),
-            TextInput::make('lyd_amount')
-                ->label('مقابل الدينار')
-                ->visible(fn (string $operation): bool => $operation !== 'create'),
-            TextInput::make('cost_price')
-                ->label('سعر التكلفة')
-                ->visible(fn (string $operation): bool => $operation !== 'create'),
-            TextInput::make('profit')
-                ->label('الربح أو الخسارة')
-                ->visible(fn (string $operation): bool => $operation !== 'create'),
-            Textarea::make('notes')
+            Grid::make(2)
+                ->columnSpanFull()
+                ->schema([
+                    Select::make('customer_id')
+                        ->label('الزبون')
+                        ->relationship('customer', 'name', fn (Builder $query): Builder => $query->orderBy('name'))
+                        ->default(fn (): mixed => Customer::query()->where('is_general', true)->value('id') ?? 1)
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->manageOptionForm(fn (): array => CustomerResource::formFields())
+                        ->createOptionAction(fn (Action $action): Action => $action
+                            ->label('زبون جديد')
+                            ->modalHeading('زبون جديد')
+                            ->modalSubmitActionLabel('حفظ'))
+                        ->editOptionAction(fn (Action $action): Action => $action
+                            ->label('تعديل الزبون')
+                            ->modalHeading('تعديل الزبون')
+                            ->modalSubmitActionLabel('حفظ')),
+                    Select::make('bank_account_id')
+                        ->label('الحساب المصرفي')
+                        ->options(fn (): array => BankAccount::query()
+                            ->where('is_active', true)
+                            ->orderBy('bank_name')
+                            ->get()
+                            ->mapWithKeys(fn (BankAccount $account): array => [
+                                $account->id => $account->label(),
+                            ])
+                            ->all())
+                        ->searchable()
+                        ->preload()
+                        ->visible(fn (Get $get): bool => (string) $get('type') === TradeSide::Sell->value && (string) $get('payment') === DealPayment::Check->value)
+                        ->required(fn (Get $get): bool => (string) $get('type') === TradeSide::Sell->value && (string) $get('payment') === DealPayment::Check->value)
+                        ->dehydrated(fn (Get $get): bool => (string) $get('type') === TradeSide::Sell->value && (string) $get('payment') === DealPayment::Check->value)
+                        ->disabled(fn (string $operation): bool => $operation === 'view')
+                        ->afterStateUpdatedJs(<<<'JS'
+                            setTimeout(() => {
+                                const quantity = document.querySelector('[data-initial-focus]');
+                                if (! (quantity instanceof HTMLElement) || quantity.disabled) {
+                                    return;
+                                }
+                                quantity.focus();
+                                if (typeof quantity.select === 'function') {
+                                    quantity.select();
+                                }
+                            }, 50);
+                        JS),
+                ]),
+            Grid::make(3)
+                ->columnSpanFull()
+                ->schema([
+                    Select::make('currency_id')
+                        ->label('العملة')
+                        ->hiddenLabel()
+                        ->prefix('العملة')
+                        ->allowHtml()
+                        ->options(fn (): array => Currency::query()
+                            ->where('is_active', true)
+                            ->where('code', '!=', 'LYD')
+                            ->orderBy('code')
+                            ->get()
+                            ->mapWithKeys(fn (Currency $currency): array => [
+                                $currency->id => $currency->decoratedLabel($currency->code.' — '.$currency->name),
+                            ])
+                            ->all())
+                        ->searchable()
+                        ->live()
+                        ->default(fn (): mixed => Currency::query()->where('code', 'USD')->value('id'))
+                        ->required()
+                        ->afterStateUpdated(function (Get $get, Set $set): void {
+                            static::fillRate($get, $set);
+                        }),
+                    TextInput::make('quantity')
+                        ->label('الكمية')
+                        ->hiddenLabel()
+                        ->prefix('الكمية')
+                        ->numeric()
+                        ->minValue(0.001)
+                        ->step(0.001)
+                        ->live()
+                        ->required()
+                        ->autofocus()
+                        ->extraInputAttributes(['data-initial-focus' => '1', 'data-number-decimals' => '3']),
+                    TextInput::make('rate')
+                        ->label('السعر')
+                        ->hiddenLabel()
+                        ->prefix('السعر')
+                        ->numeric()
+                        ->minValue(0.001)
+                        ->step(0.001)
+                        ->live()
+                        ->required()
+                        ->default(fn (): mixed => Numbers::format(Currency::query()->where('code', 'USD')->value('sell_cash_rate'), 3))
+                        ->extraInputAttributes(['data-number-decimals' => '3']),
+                ]),
+            TextInput::make('notes')
                 ->label('ملاحظات')
+                ->maxLength(255)
                 ->columnSpanFull(),
         ]);
     }
@@ -262,14 +290,15 @@ class ExchangeDealResource extends Resource
                     ->label('الدفع')
                     ->formatStateUsing(fn (DealPayment|string|null $state): string => $state instanceof DealPayment ? $state->label() : (string) $state),
                 TextColumn::make('customer.name')->label('الزبون'),
+                TextColumn::make('bankAccount.bank_name')->label('الحساب')->placeholder('—'),
                 TextColumn::make('currency.code')->label('العملة'),
                 TextColumn::make('quantity')->label('الكمية')->numeric(decimalPlaces: 3),
-                TextColumn::make('rate')->label('السعر')->numeric(decimalPlaces: 6),
+                TextColumn::make('rate')->label('السعر')->numeric(decimalPlaces: 3),
                 TextColumn::make('lyd_amount')
                     ->label('الدينار')
                     ->numeric(decimalPlaces: 3)
                     ->summarize(static::dayTotal(3)),
-                TextColumn::make('cost_price')->label('التكلفة')->numeric(decimalPlaces: 6),
+                TextColumn::make('cost_price')->label('التكلفة')->numeric(decimalPlaces: 3),
                 TextColumn::make('profit')
                     ->label('الربح')
                     ->numeric(decimalPlaces: 3)
@@ -318,44 +347,25 @@ class ExchangeDealResource extends Resource
 
         $side = TradeSide::tryFrom((string) $get('type')) ?? TradeSide::Sell;
         $payment = DealPayment::tryFrom((string) $get('payment')) ?? DealPayment::Cash;
-        $set('rate', $currency->{match (true) {
+        $set('rate', Numbers::format($currency->{match (true) {
             $side === TradeSide::Buy && $payment === DealPayment::Check => 'buy_check_rate',
             $side === TradeSide::Buy => 'buy_cash_rate',
             $payment === DealPayment::Check => 'sell_check_rate',
             default => 'sell_cash_rate',
-        }});
+        }}, 3));
     }
 
     public static function lydPreview(Get $get): float
     {
-        return round((float) ($get('quantity') ?? 0) * (float) ($get('rate') ?? 0), 3);
+        return round(static::numericValue($get('quantity')) * static::numericValue($get('rate')), 3);
     }
 
-    public static function branchCost(mixed $currencyId): string
+    private static function numericValue(mixed $value): float
     {
-        $user = Auth::user();
-
-        if (! $user instanceof User || blank($currencyId)) {
-            return '0.000000';
+        if (is_string($value)) {
+            $value = str_replace([',', ' '], '', $value);
         }
 
-        $branchId = CashierVault::query()->where('user_id', $user->id)->where('is_active', true)->value('branch_id');
-
-        if (blank($branchId)) {
-            return '0.000000';
-        }
-
-        $mainVaultId = MainVault::query()->where('branch_id', $branchId)->where('is_active', true)->value('id');
-
-        if (blank($mainVaultId)) {
-            return '0.000000';
-        }
-
-        $cost = MainVaultBalance::query()
-            ->where('main_vault_id', $mainVaultId)
-            ->where('currency_id', $currencyId)
-            ->value('cost_price');
-
-        return number_format((float) $cost, 6, '.', '');
+        return (float) $value;
     }
 }

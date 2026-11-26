@@ -8,6 +8,7 @@ use App\Enums\DealStatus;
 use App\Enums\TradeSide;
 use App\Enums\UserRole;
 use App\Enums\WorkDayStatus;
+use App\Models\BankAccount;
 use App\Models\CashierVault;
 use App\Models\CashierVaultBalance;
 use App\Models\Currency;
@@ -94,6 +95,8 @@ class ExchangeTradeService
                 ]);
             }
 
+            $bankAccountId = self::bankAccountId($data, $side, $payment);
+
             $quantity = self::money($data['quantity'] ?? 0);
             $rate = self::rate($data['rate'] ?? 0);
 
@@ -154,6 +157,7 @@ class ExchangeTradeService
                 'payment' => $payment,
                 'cashier_vault_id' => $cashierVault->id,
                 'customer_id' => $customerId,
+                'bank_account_id' => $bankAccountId,
                 'currency_id' => $currency->id,
                 'quantity' => $quantity,
                 'rate' => $rate,
@@ -178,7 +182,7 @@ class ExchangeTradeService
         return DB::connection($connection)->transaction(function () use ($deal, $data, $user): ExchangeDeal {
             $locked = self::lockedOpenSale($deal, $user);
             $before = self::snapshot($locked);
-            [$currency, $customerId, $quantity, $rate, $payment, $lydAmount] = self::saleInput($data);
+            [$currency, $customerId, $quantity, $rate, $payment, $lydAmount, $bankAccountId] = self::saleInput($data);
             $lyd = self::lydCurrency();
             $vault = self::actingVault($user);
 
@@ -205,6 +209,7 @@ class ExchangeTradeService
             $locked->fill([
                 'payment' => $payment,
                 'customer_id' => $customerId,
+                'bank_account_id' => $bankAccountId,
                 'currency_id' => $currency->id,
                 'quantity' => $quantity,
                 'rate' => $rate,
@@ -298,7 +303,7 @@ class ExchangeTradeService
 
     /**
      * @param  array<string, mixed>  $data
-     * @return array{0: Currency, 1: int, 2: string, 3: string, 4: DealPayment, 5: string}
+     * @return array{0: Currency, 1: int, 2: string, 3: string, 4: DealPayment, 5: string, 6: int|null}
      */
     private static function saleInput(array $data): array
     {
@@ -338,7 +343,24 @@ class ExchangeTradeService
             ]);
         }
 
-        return [$currency, $customerId, $quantity, $rate, $payment, self::money((float) $quantity * (float) $rate)];
+        return [$currency, $customerId, $quantity, $rate, $payment, self::money((float) $quantity * (float) $rate), self::bankAccountId($data, TradeSide::Sell, $payment)];
+    }
+
+    private static function bankAccountId(array $data, TradeSide $side, DealPayment $payment): ?int
+    {
+        if ($side !== TradeSide::Sell || $payment !== DealPayment::Check) {
+            return null;
+        }
+
+        $bankAccountId = (int) ($data['bank_account_id'] ?? 0);
+
+        if ($bankAccountId === 0 || ! BankAccount::query()->whereKey($bankAccountId)->where('is_active', true)->exists()) {
+            throw ValidationException::withMessages([
+                'bank_account_id' => 'حدد الحساب المصرفي.',
+            ]);
+        }
+
+        return $bankAccountId;
     }
 
     private static function lydCurrency(): Currency
@@ -359,7 +381,7 @@ class ExchangeTradeService
      */
     private static function snapshot(ExchangeDeal $deal): array
     {
-        $deal->load(['customer', 'currency']);
+        $deal->load(['customer', 'currency', 'bankAccount']);
 
         return [
             'status' => $deal->status instanceof DealStatus ? $deal->status->value : (string) $deal->status,
@@ -367,6 +389,8 @@ class ExchangeTradeService
             'payment' => $deal->payment instanceof DealPayment ? $deal->payment->value : (string) $deal->payment,
             'customer_id' => $deal->customer_id,
             'customer_name' => $deal->customer?->name,
+            'bank_account_id' => $deal->bank_account_id,
+            'bank_account_name' => $deal->bankAccount?->label(),
             'currency_id' => $deal->currency_id,
             'currency_code' => $deal->currency?->code,
             'quantity' => (string) $deal->quantity,
@@ -407,6 +431,7 @@ class ExchangeTradeService
             'status' => 'الحالة',
             'payment' => 'الدفع',
             'customer_name' => 'الزبون',
+            'bank_account_name' => 'الحساب المصرفي',
             'currency_code' => 'العملة',
             'quantity' => 'الكمية',
             'rate' => 'السعر',

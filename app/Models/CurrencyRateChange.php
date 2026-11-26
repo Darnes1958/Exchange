@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Numbers;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CurrencyRateChange extends CompanyModel
@@ -58,6 +59,6 @@ class CurrencyRateChange extends CompanyModel
             return '—';
         }
 
-        return number_format((float) $value, 4, '.', '');
+        return Numbers::format($value, 4);
     }
 }

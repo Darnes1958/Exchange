@@ -16,6 +16,7 @@ class ExchangeDeal extends CompanyModel
         'payment',
         'cashier_vault_id',
         'customer_id',
+        'bank_account_id',
         'currency_id',
         'quantity',
         'rate',
@@ -55,6 +56,11 @@ class ExchangeDeal extends CompanyModel
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 
     public function currency(): BelongsTo

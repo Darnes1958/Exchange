@@ -66,7 +66,7 @@ class BankAccountBalance extends CompanyModel
         }
 
         $message = $account->type === BankAccountType::Local
-            ? 'الحساب المحلي يقبل الدينار الليبي فقط.'
+            ? 'الحساب المحلي يقبل الدينار الليبي والدولار الأمريكي فقط.'
             : 'الحساب الأجنبي يقبل العملات الأجنبية فقط.';
 
         throw ValidationException::withMessages([

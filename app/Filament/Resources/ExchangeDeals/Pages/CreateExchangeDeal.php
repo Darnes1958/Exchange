@@ -8,12 +8,33 @@ use App\Services\ExchangeTradeService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Exceptions\Halt;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 class CreateExchangeDeal extends CreateRecord
 {
     protected static string $resource = ExchangeDealResource::class;
+
+    protected static bool $canCreateAnother = false;
+
+    public function getHeading(): string|Htmlable|null
+    {
+        return '';
+    }
+
+    public function getPageClasses(): array
+    {
+        return [
+            ...parent::getPageClasses(),
+            'deal-create-compact',
+        ];
+    }
+
+    public function create(bool $another = false): void
+    {
+        parent::create(another: true);
+    }
 
     protected function handleRecordCreation(array $data): Model
     {

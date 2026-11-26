@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users;
 
 use App\Enums\UserRole;
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
@@ -15,7 +16,6 @@ use App\Models\User;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;

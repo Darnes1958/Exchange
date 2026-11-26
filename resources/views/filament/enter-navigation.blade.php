@@ -1,3 +1,10 @@
+<style>
+    .deal-create-compact .fi-header { display: none; }
+    .deal-create-compact .fi-fo-field { --cols-spacing: 0.55rem; margin-block: 0.35rem; }
+    .deal-create-compact .fi-sc-flex { gap: 0.5rem; }
+    .deal-create-compact .fi-input-wrp { min-height: 2.25rem; }
+    .deal-create-compact .fi-sc-component { row-gap: 0.45rem; }
+</style>
 <script>
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
@@ -42,8 +49,42 @@
         }
     });
 
+    document.addEventListener('blur', (event) => {
+        const input = event.target;
+
+        if (! (input instanceof HTMLInputElement) || input.dataset.numberFormat !== '1') {
+            return;
+        }
+
+        const maxDecimals = Number(input.dataset.numberDecimals || 0) || null;
+        const formatted = displayNumber(input.value, maxDecimals);
+
+        if (formatted !== input.value) {
+            input.value = formatted;
+        }
+    }, true);
+
     document.addEventListener('DOMContentLoaded', () => focusInitialEntry());
     document.addEventListener('livewire:navigated', () => focusInitialEntry());
+
+    function displayNumber(value, maxDecimals) {
+        const raw = String(value).replace(/,/g, '').trim();
+
+        if (! /^-?\d+(\.\d+)?$/.test(raw)) {
+            return value;
+        }
+
+        const negative = raw.startsWith('-');
+        let [whole, fraction] = raw.replace('-', '').split('.');
+
+        if (fraction !== undefined && maxDecimals) {
+            fraction = (fraction + '000').slice(0, maxDecimals);
+        }
+
+        const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+        return (negative ? '-' : '') + grouped + (fraction ? '.' + fraction : '');
+    }
 
     function focusInitialEntry() {
         window.setTimeout(() => {

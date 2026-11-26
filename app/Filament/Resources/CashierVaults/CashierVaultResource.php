@@ -4,6 +4,7 @@ namespace App\Filament\Resources\CashierVaults;
 
 use App\Enums\UserRole;
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\CashierVaults\Pages\CreateCashierVault;
 use App\Filament\Resources\CashierVaults\Pages\EditCashierVault;
 use App\Filament\Resources\CashierVaults\Pages\ListCashierVaults;
@@ -17,7 +18,6 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Set;

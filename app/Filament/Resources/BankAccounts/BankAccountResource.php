@@ -4,6 +4,7 @@ namespace App\Filament\Resources\BankAccounts;
 
 use App\Enums\BankAccountType;
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\BankAccounts\Pages\CreateBankAccount;
 use App\Filament\Resources\BankAccounts\Pages\EditBankAccount;
 use App\Filament\Resources\BankAccounts\Pages\ListBankAccounts;
@@ -17,7 +18,6 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
@@ -71,7 +71,7 @@ class BankAccountResource extends Resource
                 ->columnSpanFull(),
             Repeater::make('balances')
                 ->label('أرصدة العملات')
-                ->helperText('الرصيد الحالي ناتج الرصيد المنقول وحركات الإيداع والسحب، ولا يُعدَّل يدوياً. الرصيد المنقول يعدّله المبرمج فقط، بطلب من مدير الشركة. الحساب المحلي بالدينار الليبي، والحساب الأجنبي بالعملات الأجنبية.')
+                ->helperText('الرصيد الحالي ناتج الرصيد المنقول وحركات الإيداع والسحب، ولا يُعدَّل يدوياً. الرصيد المنقول يعدّله المبرمج فقط، بطلب من مدير الشركة. الحساب المحلي بالدينار الليبي والدولار الأمريكي، والحساب الأجنبي بالعملات الأجنبية.')
                 ->relationship()
                 ->addActionLabel('إضافة عملة')
                 ->deletable(fn (): bool => static::canAdjustCarriedBalance())
@@ -95,7 +95,7 @@ class BankAccountResource extends Resource
                             return Currency::query()
                                 ->when(
                                     $isLocal,
-                                    fn ($query) => $query->where('code', 'LYD'),
+                                    fn ($query) => $query->whereIn('code', ['LYD', 'USD']),
                                     fn ($query) => $query->where('code', '!=', 'LYD'),
                                 )
                                 ->orderBy('code')

@@ -34,7 +34,7 @@ class BankAccount extends CompanyModel
             $hasInvalidBalance = $account->balances()
                 ->whereHas('currency', function ($query) use ($type): void {
                     if ($type === BankAccountType::Local) {
-                        $query->where('code', '!=', 'LYD');
+                        $query->whereNotIn('code', ['LYD', 'USD']);
 
                         return;
                     }
@@ -64,12 +64,21 @@ class BankAccount extends CompanyModel
         return $this->hasMany(BankAccountBalance::class);
     }
 
+    public function label(): string
+    {
+        $type = $this->type instanceof BankAccountType
+            ? $this->type->label()
+            : (string) $this->type;
+
+        return $this->bank_name.' — '.$this->account_number.' ('.$type.')';
+    }
+
     public function allowsCurrency(Currency $currency): bool
     {
-        $isLibyanDinar = strtoupper($currency->code) === 'LYD';
+        $type = $this->type instanceof BankAccountType
+            ? $this->type
+            : BankAccountType::tryFrom((string) $this->type);
 
-        return $this->type === BankAccountType::Local
-            ? $isLibyanDinar
-            : ! $isLibyanDinar;
+        return $type instanceof BankAccountType && $type->allowsCurrencyCode($currency->code);
     }
 }

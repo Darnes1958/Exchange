@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Vouchers;
 
 use App\Enums\VoucherType;
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\Customers\CustomerResource;
 use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Filament\Resources\Vouchers\Pages\EditVoucher;
@@ -18,7 +19,6 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;

@@ -15,6 +15,16 @@ enum BankAccountType: string
         };
     }
 
+    public function allowsCurrencyCode(string $code): bool
+    {
+        $code = strtoupper($code);
+
+        return match ($this) {
+            self::Local => in_array($code, ['LYD', 'USD'], true),
+            self::Foreign => $code !== 'LYD',
+        };
+    }
+
     /**
      * @return array<string, string>
      */

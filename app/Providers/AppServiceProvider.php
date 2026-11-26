@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -25,8 +26,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        Number::useLocale('en');
         Table::configureUsing(fn (Table $table) => $table
-            ->defaultNumberLocale('nl')
+            ->defaultNumberLocale('en')
             ->pluralModelLabel('الصفحات')
             ->emptyStateHeading('لا توجد بيانات')
             ->defaultKeySort(false));

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MainVaults;
 
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\MainVaults\Pages\CreateMainVault;
 use App\Filament\Resources\MainVaults\Pages\EditMainVault;
 use App\Filament\Resources\MainVaults\Pages\ListMainVaults;
@@ -19,7 +20,6 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;

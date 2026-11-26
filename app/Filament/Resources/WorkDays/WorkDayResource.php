@@ -4,6 +4,7 @@ namespace App\Filament\Resources\WorkDays;
 
 use App\Enums\WorkDayStatus;
 use App\Filament\Concerns\ExceptCashiers;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\WorkDays\Pages\ListWorkDays;
 use App\Filament\Resources\WorkDays\Pages\ViewWorkDay;
 use App\Filament\Resources\WorkDays\RelationManagers\WorkDayHandoversRelationManager;
@@ -12,7 +13,6 @@ use App\Models\WorkDay;
 use App\Services\DailyCustodyService;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;

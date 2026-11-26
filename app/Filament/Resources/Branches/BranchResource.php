@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Branches;
 
 use App\Enums\UserRole;
+use App\Filament\Forms\TextInput;
 use App\Filament\Resources\Branches\Pages\CreateBranch;
 use App\Filament\Resources\Branches\Pages\EditBranch;
 use App\Filament\Resources\Branches\Pages\ListBranches;
@@ -12,7 +13,6 @@ use App\Models\CompanySetting;
 use App\Models\User;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
