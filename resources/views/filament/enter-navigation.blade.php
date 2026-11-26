@@ -4,8 +4,82 @@
     .deal-create-compact .fi-sc-flex { gap: 0.5rem; }
     .deal-create-compact .fi-input-wrp { min-height: 2.25rem; }
     .deal-create-compact .fi-sc-component { row-gap: 0.45rem; }
+
+    .fi-fo-date-time-picker .fi-async-component-content {
+        display: flex;
+        align-items: stretch;
+        gap: 0.35rem;
+        position: relative;
+    }
+
+    .fi-fo-date-time-picker .fi-fo-date-time-picker-trigger {
+        width: auto;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .date-calendar-button {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        border: 1px solid rgb(209 213 219);
+        border-radius: 0.5rem;
+        background: #fff;
+        color: rgb(55 65 81);
+        cursor: pointer;
+    }
+
+    .date-calendar-button svg {
+        width: 1.15rem;
+        height: 1.15rem;
+    }
 </style>
 <script>
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
+            return;
+        }
+
+        const current = event.target;
+
+        if (! (current instanceof HTMLElement) || ! current.classList.contains('fi-fo-date-time-picker-trigger')) {
+            return;
+        }
+
+        const container = current.closest('[role="dialog"]') || current.closest('form');
+
+        if (! container) {
+            return;
+        }
+
+        const next = nextEntryTarget(container, current);
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (! next) {
+            return;
+        }
+
+        next.focus();
+
+        if (typeof next.select === 'function' && next.tagName !== 'BUTTON') {
+            next.select();
+        }
+    }, true);
+
+    document.addEventListener('click', (event) => {
+        const current = event.target;
+
+        if (! (current instanceof Element) || ! current.closest('.fi-fo-date-time-picker-trigger')) {
+            return;
+        }
+
+        event.stopImmediatePropagation();
+    }, true);
+
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
             return;
@@ -64,8 +138,17 @@
         }
     }, true);
 
-    document.addEventListener('DOMContentLoaded', () => focusInitialEntry());
-    document.addEventListener('livewire:navigated', () => focusInitialEntry());
+    document.addEventListener('DOMContentLoaded', () => {
+        focusInitialEntry();
+        installDateButtons();
+    });
+    document.addEventListener('livewire:navigated', () => {
+        focusInitialEntry();
+        installDateButtons();
+    });
+
+    const dateButtonObserver = new MutationObserver(() => installDateButtons());
+    dateButtonObserver.observe(document.documentElement, { childList: true, subtree: true });
 
     function displayNumber(value, maxDecimals) {
         const raw = String(value).replace(/,/g, '').trim();
@@ -84,6 +167,35 @@
         const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
         return (negative ? '-' : '') + grouped + (fraction ? '.' + fraction : '');
+    }
+
+    function installDateButtons() {
+        document.querySelectorAll('.fi-fo-date-time-picker').forEach((picker) => {
+            const host = picker.querySelector('.fi-async-component-content');
+            const trigger = picker.querySelector('.fi-fo-date-time-picker-trigger');
+
+            if (! host || ! trigger || host.querySelector('.date-calendar-button')) {
+                return;
+            }
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'date-calendar-button';
+            button.tabIndex = -1;
+            button.setAttribute('aria-label', 'فتح التقويم');
+            button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"></rect><path d="M8 3.5v3M16 3.5v3M3.5 10h17"></path></svg>';
+            button.addEventListener('click', (clickEvent) => {
+                clickEvent.preventDefault();
+                clickEvent.stopPropagation();
+
+                const data = window.Alpine?.$data(host);
+
+                if (data && typeof data.togglePanelVisibility === 'function') {
+                    data.togglePanelVisibility();
+                }
+            });
+            host.appendChild(button);
+        });
     }
 
     function focusInitialEntry() {
@@ -151,4 +263,6 @@
 
         return targets[index + 1] ?? null;
     }
+
+    installDateButtons();
 </script>

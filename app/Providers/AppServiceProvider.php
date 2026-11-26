@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         Number::useLocale('en');
+        DateTimePicker::configureUsing(fn (DateTimePicker $picker) => $picker->native(false));
         Table::configureUsing(fn (Table $table) => $table
             ->defaultNumberLocale('en')
             ->pluralModelLabel('الصفحات')
